@@ -1,0 +1,164 @@
+﻿@page "/chats"
+
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IClientChatMessageService ChatMessageService
+@inject IClientAuthService ClientAuthService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+
+<PageTitle>Chats</PageTitle>
+<title>Chats</title>
+<AuthorizeView>
+    <Authorized>
+        @if (hubConnection != null && IsConnected)
+        {
+            <MudText Typo="Typo.h6" Class="py-2 px-md-5">Chats</MudText>
+            <MudContainer Class="position-relative" id="chatContainer">
+                <div class="d-flex flex-column px-4" style="min-height: 70vh; padding-bottom:100px;">
+                    @foreach (var message in messages)
+                    {
+                        <div class="d-flex flex-row mb-2 @((message?.User?.Id == UserId) ? "justify-content-end" : "")">
+                            @if (message?.User?.Id != UserId)
+                            {
+                                <div class="mr-4">
+                                    <MudAvatar Color="Color.Secondary" Style="height:50px; width:50px;">
+                                        <MudImage Src="@message?.User?.AvatarURL"></MudImage>
+                                    </MudAvatar>
+                                </div>
+                            }
+                            <div class="@((message?.User?.Id == UserId) ? "text-end ml-4" : "")">
+                                <MudContainer Style="padding: 15px;background-color: var(--mud-palette-background-grey);border-radius: 5px;margin-top:5px;">
+                                    <div class="d-flex gap-2 align-items-center pb-2">
+                                        <MudText Typo="Typo.body1" class="@((message?.User?.Id == UserId) ? "text-right" : "")" Style="font-size: 16px; font-weight: 500">@message?.User?.FullName</MudText>
+                                        <MudText Typo="Typo.caption" Style="font-size: xx-small!important;">
+                                            @{
+                                                var isToday = message?.TimeStamp.Date == DateTime.Today;
+                                            }
+                                            @if (isToday)
+                                            {
+                                                <span>Today: @message.TimeStamp.ToShortTimeString()</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@message.TimeStamp.ToString("MMM dd, yyyy HH:mm")</span>
+                                            }
+                                        </MudText>
+                                    </div>
+                                    <MudText Typo="Typo.body2">
+                                        @message?.Content
+                                    </MudText>
+                                </MudContainer>
+                            </div>
+                            @if (message?.User?.Id == UserId)
+                            {
+                                <div class="ml-4">
+                                    <MudAvatar Color="Color.Secondary" Style="height:50px; width:50px;">
+                                        <MudImage Src="@message?.User?.AvatarURL"></MudImage>
+                                    </MudAvatar>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <MudPaper Elevation="25" Class="d-flex flex-row px-2 mx-4" Style="margin-bottom:20px; width: 70%; position: fixed; bottom: 20px;">
+                    <MudTextField T="string"
+                                  Placeholder="Enter your message..."
+                                  DisableUnderLine="true"
+                                  Class="mt-n2 mx-4 py-2"
+                                  @bind-Value="messageInput"
+                                  For="@(()=> messageInput)"
+                                  AutoFocus />
+
+                    <MudButton OnClick="Send"
+                               StartIcon="@Icons.Material.Outlined.Send"
+                               Color="Color.Secondary"
+                               ButtonType="ButtonType.Button">
+                        Send
+                    </MudButton>
+                </MudPaper>
+
+            </MudContainer>
+
+        }
+        else
+        {
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="m-0" />
+        }
+    </Authorized>
+    <NotAuthorized>
+       <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+   
+
+@code {
+    private HubConnection hubConnection;
+
+    int UserId;
+    private string messageInput = string.Empty;
+    public List<ChatMessageDTO> messages = new List<ChatMessageDTO>();
+
+    private async Task BottomScrollTo()
+    {
+        await JSRuntime.InvokeVoidAsync("BottomScrollTo", "chatContainer");
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            await BottomScrollTo();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrEmpty(ClientAuthService.Token.Value))
+        {
+            var cookieValue = await JSRuntime.InvokeAsync<string>("getCookie", "Token");
+            if (!string.IsNullOrEmpty(cookieValue))
+                ClientAuthService.Token.Value = cookieValue;
+
+        }
+
+        AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        UserId = int.Parse(state.User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value!);
+
+        var chatMessages = await ChatMessageService.GetAllMessages();
+        if (chatMessages != null)
+            messages = chatMessages;
+
+        hubConnection = new HubConnectionBuilder()
+        .WithUrl(NavigationManager.ToAbsoluteUri("/chathub"))
+        .Build();
+
+        hubConnection.On<ChatMessageDTO>("ReceiveMessage", async message =>
+        {
+            messages.Add(message);
+            if (message.User.Id != UserId)
+            {
+                Snackbar.Add("New Message", Severity.Info);
+            }
+
+            StateHasChanged();
+            await BottomScrollTo();
+        });
+
+        await hubConnection.StartAsync();
+    }
+
+    void Send()
+    {
+        if (!string.IsNullOrEmpty(messageInput))
+        {
+            hubConnection.SendAsync("SendMessage", UserId, messageInput);
+            messageInput = "";
+            BottomScrollTo();
+        }
+    }
+
+    public bool IsConnected => hubConnection.State == HubConnectionState.Connected;
+
+}

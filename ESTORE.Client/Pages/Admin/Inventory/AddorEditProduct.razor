@@ -1,0 +1,185 @@
+﻿@page "/admin/add-product"
+@page "/admin/edit-product/{Id:int}"
+
+@inject NavigationManager NavigationManager
+@inject IClientProductService ClientProductService
+@inject IClientCategoryService ClientCategoryService
+@inject IClientFileUploadService ClientFileUploadService
+
+<AuthorizeView Roles="SUPERUSER">
+    <Authorized>
+        @if (Id is null)
+        {
+            <title>Add Product</title>
+            <MudText Typo="Typo.h6" Class="py-2 px-md-5">Add New Product</MudText>
+        }
+        else
+        {
+            <title>Edit Product</title>
+            <MudText Typo="Typo.h6" Class="py-2 px-md-5">Edit Product</MudText>
+        }
+
+        <EditForm Model="Product" OnValidSubmit="HandleSubmit" FormName="Form" Context="Form">
+            <DataAnnotationsValidator />
+            <MudGrid Class="py-5 px-md-5">
+                <MudItem sm="12" md="6" Class="d-flex gap-3 row">
+                    <MudTextField @bind-Value="Product.Name"
+                                  For="@(()=>@Product.Name)"
+                                  Label="Name"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  ShrinkLabel Class="mx-3" />
+
+                    <MudTextField @bind-Value="Product.Quantity"
+                                  For="@(()=>@Product.Quantity)"
+                                  Label="Quantity"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  ShrinkLabel Class="mx-3" />
+
+                    <MudTextField @bind-Value="Product.Price"
+                                  For="@(()=>@Product.Price)"
+                                  Label="Price"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  ShrinkLabel
+                                  Adornment="Adornment.Start"
+                                  AdornmentText="₱" Class="mx-3" />
+
+                    <MudTextField @bind-Value="Product.Description"
+                                  For="@(()=>@Product.Description)"
+                                  Label="Description"
+                                  Required="true"
+                                  Variant="Variant.Outlined"
+                                  Lines="5"
+                                  ShrinkLabel Class="mx-3" />
+                </MudItem>
+
+                <MudItem xs="12" sm="12" md="6" Class="d-flex gap-3 row h-auto">
+                    <MudContainer Class="p-0 m-0 px-3">
+                        <MudSelect Label="Product Category"
+                                   @bind-Value="Product.ProductCategory"
+                                   For="@(()=>@Product.ProductCategory)"
+                                   Required="true"
+                                   Variant="Variant.Outlined"
+                                   ShrinkLabel>
+                            <MudSelectItem Value="@Product.ProductCategory" Class="d-none">@Product?.ProductCategory?.Name</MudSelectItem>
+                            @foreach (var category in Category)
+                            {
+                                <MudSelectItem Value="@category">@category.Name</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudContainer Class="w-100 m-0 p-0 mt-5" Style="height:290px; border: 1px dashed black">
+                            <div class="d-flex justify-content-center row position-relative h-100">
+                                <InputFile id="product" OnChange="OnFileSelectedProduct" hidden/>
+                                <div class="d-flex justify-content-center row h-100">
+                                    <MudButton HtmlTag="label" for="product" FullWidth>
+                                        <MudContainer Class="h-100 w-100 d-flex justify-center">
+                                            @if (!string.IsNullOrEmpty(Product.ImageUrl))
+                                            {
+                                                <MudImage Src="@Product.ImageUrl" Style="width: 100%; height: 260px" ObjectFit="ObjectFit.Contain"></MudImage>
+                                            }
+                                            else
+                                            {
+                                                <MudIcon Icon="@Icons.Material.Filled.Upload" />
+                                            }
+                                        </MudContainer>
+                                    </MudButton>
+                                </div>
+                            </div>
+                        </MudContainer>
+                   </MudContainer>
+                </MudItem>
+            </MudGrid>
+            <MudContainer Class="d-flex gap-3 w-100 mx-0 px-md-5 mx-md-3">
+                <MudButton ButtonType="ButtonType.Button"
+                           Style="@($"color:{Colors.BlueGrey.Darken4};")"
+                           Variant="Variant.Outlined" OnClick="Cancel">Cancel</MudButton>
+                <MudButton ButtonType="ButtonType.Submit"
+                           Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")"
+                           Variant="Variant.Filled">Save Product</MudButton>
+            </MudContainer>
+        </EditForm>
+    </Authorized>
+    <NotAuthorized>
+
+    </NotAuthorized>
+</AuthorizeView>
+  
+
+
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    public ProductDTO Product = new ProductDTO();
+    public List<CategoryDTO> Category = new List<CategoryDTO>();
+    public string ImgUrl { get; set; } = string.Empty;
+    public IBrowserFile? content;
+    bool isProductImageChanged = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+
+        if (Id != null)
+        {
+            var response = await ClientProductService.GetProductById((int)Id);
+            if (response != null)
+            {
+                Product = response;     
+            }
+        }
+
+        var categoryResponse = await ClientCategoryService.GetAllCategory();
+        if (categoryResponse != null)
+        {
+            Category = categoryResponse;
+        }
+
+
+    }
+
+    private async Task OnFileSelectedProduct(InputFileChangeEventArgs e)
+    {
+        var format = "image/png";
+        var resizedImage = await e.File.RequestImageFileAsync(format, 500, 500);
+        var buffer = new byte[resizedImage.Size];
+        await resizedImage.OpenReadStream().ReadAsync(buffer);
+        var imageData = $"data:{format}; base64, {Convert.ToBase64String(buffer)}";
+        Product.ImageUrl = imageData;
+        isProductImageChanged = true;
+
+        content = e.File;
+    }
+
+    async Task HandleSubmit()
+    {
+        if (Id is null)
+        {
+            var uploadResponse = await ClientFileUploadService.UploadFile(content);
+            if (uploadResponse != null)
+                Product.ImageUrl = uploadResponse;
+            await ClientProductService.AddProduct(Product);
+            Product = new ProductDTO();
+        }
+        else
+        {
+            //Update
+            if (isProductImageChanged)
+            {
+                var uploadResponse = await ClientFileUploadService.EditUploadedFile(content, Product.Id);
+                if (uploadResponse != null)
+                    Product.ImageUrl = uploadResponse;
+            }
+            await ClientProductService.UpdateProduct(Product, (int)Id);
+        }
+    }
+
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("/admin/products");
+    }
+
+ }
+

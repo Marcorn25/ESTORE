@@ -1,0 +1,77 @@
+﻿@page "/my-orders"
+
+@inject IClientOrderService ClientOrderService
+@inject IClientAuthService ClientAuthService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Order History</PageTitle>
+<title>Order History</title>
+
+<AuthorizeView>
+    <Authorized>
+        <MudText Typo="Typo.h6" Class="py-2 px-md-5">Order History</MudText>
+
+        <MudTabs Elevation="0"
+                 Rounded="true"
+                 ApplyEffectsToContainer="true"
+                 PanelClass="p-6 md-px-0"
+                 ActivePanelIndexChanged="@((e) => OnTabChanged(e))"
+                 Class="mt-5">
+            <MudTabPanel Text="To Pay">
+                <OrderCard orders="@orders" isLoading="@isLoading" />
+            </MudTabPanel>
+            <MudTabPanel Text="To Ship">
+                <OrderCard orders="@orders" isLoading="@isLoading" />
+            </MudTabPanel>
+            <MudTabPanel Text="To Receive">
+                <OrderCard orders="@orders" isLoading="@isLoading" />
+            </MudTabPanel>
+            <MudTabPanel Text="Received">
+                <OrderCard orders="@orders" isLoading="@isLoading" />
+            </MudTabPanel>
+            <MudTabPanel Text="Cancelled">
+                <OrderCard orders="@orders" isLoading="@isLoading" />
+            </MudTabPanel>
+        </MudTabs>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    public List<OrderDTO> orders = new List<OrderDTO>();
+    public bool isLoading = false; 
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        if (string.IsNullOrEmpty(ClientAuthService.Token.Value))
+        {
+            var cookieValue = await JSRuntime.InvokeAsync<string>("getCookie", "Token");
+            if (!string.IsNullOrEmpty(cookieValue))
+                ClientAuthService.Token.Value = cookieValue;
+
+        }
+
+        var response = await ClientOrderService.GetAllUserOrder("PROCESSING");
+        if (response != null)
+            orders = response;
+        isLoading = false;
+
+    }
+
+    async Task OnTabChanged(int index)
+    {
+        isLoading = true;
+        Array enumArray = Enum.GetValues(typeof(OrderStatus));
+        OrderStatus selectedStatus = (OrderStatus)enumArray.GetValue(index);
+        var response = await ClientOrderService.GetAllUserOrder(selectedStatus.ToString());
+        if (response != null)
+            orders = response;
+        StateHasChanged();
+        isLoading = false;
+    }
+
+}

@@ -1,0 +1,42 @@
+﻿@inject ISnackbar Snackbar
+@inject IClientCategoryService CategoryService
+
+<MudDialog Style="width: 300px">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(IsEdit ? Icons.Material.Filled.Edit : Icons.Material.Filled.Add)" Class="mr-3 mb-n1" />
+            @(IsEdit ? "Edit Category" : "Add New Category")
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="@category.Name" Label="Category Name" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Save">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public CategoryDTO category { get; set; } = new CategoryDTO();
+    [Parameter] public bool IsEdit { get; set; } = false;
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async void Save()
+    {
+        if (IsEdit)
+        {
+            await CategoryService.UpdateCategory(category.Id, category);
+        }
+        else
+        {
+            await CategoryService.AddCategory(category);
+        }
+
+        MudDialog.Close();
+    }
+}

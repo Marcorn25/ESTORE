@@ -1,0 +1,97 @@
+﻿<MudDialog Class="p-3">
+    <DialogContent>
+        <div>
+            <MudText Typo="Typo.h6">Order No. @Order.Id</MudText>
+            <MudText Typo="Typo.subtitle1">Order Date. @Helpers.ToLongDateString(Order.DateOrdered)</MudText>
+        </div>
+        <MudDivider />
+        <div>
+            @foreach (var order in Order.OrderItems)
+            {
+                <div class="d-flex flex-column flex-md-row my-3 gap-3">
+                    <!-- Product Image -->
+                    <MudImage Src="@order.Product.ImageUrl" Style="width: 100px" />
+
+                    <!-- Product Details -->
+                    <div class="flex-grow-1" style="max-width: 400px">
+                        <MudText Typo="Typo.body2">@order.Product.Name</MudText>
+                        <MudText Typo="Typo.body2">
+                            Price: @Helpers.FormatToPhilippinePeso(order.Product.Price)
+                        </MudText>
+                    </div>
+
+                    <!-- Order Subtotal and Quantity -->
+                    <div>
+                        <MudText Typo="Typo.body2">
+                            <strong>@Helpers.FormatToPhilippinePeso(order.Subtotal)</strong>
+                        </MudText>
+                        <MudText Typo="Typo.body2">Qty: @order.Quantity</MudText>
+                    </div>
+                </div>
+            }
+        </div>
+        <MudDivider />
+        <MudText Typo="Typo.body2" Style="font-weight: 900;" Class="my-3">Payment Details</MudText>
+        <MudGrid Class="mb-3">
+            <MudItem xs="6">
+                <div>
+                    <MudText Typo="Typo.body2">Subtotal:</MudText>
+                    <MudText Typo="Typo.body2">Shipping Fee:</MudText>
+                    <MudText Typo="Typo.body2"><strong>Total:</strong></MudText>
+                </div>
+            </MudItem>
+            <MudItem xs="6">
+                <div>
+                    <MudText Typo="Typo.body2" Align="Align.Right">@($"{Helpers.FormatToPhilippinePeso(Order.Subtotal)}")</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Right">@($"{Helpers.FormatToPhilippinePeso(Order.ShippingFee)}")</MudText>
+                    <MudText Typo="Typo.body2" Align="Align.Right"><strong>@($"{Helpers.FormatToPhilippinePeso(Order.Total)}")</strong></MudText>
+                </div>
+            </MudItem>
+        </MudGrid>
+        <MudDivider />
+        <MudText Typo="Typo.body2" Style="font-weight: 900" Class="my-3">Shipping Address</MudText>
+        <div class="mb-3">
+            <div class="d-flex justify-content-between">
+                <MudText Typo="Typo.body2" Class="w-50">Address:</MudText>
+                <MudText Typo="Typo.body2" Class="w-50">@($"{Address.Street}, {Address.Barangay}, {Address.City}. {Address.ZipCode}, {Address.Country}")</MudText>
+            </div>
+            <div class="d-flex justify-content-between">
+                <MudText Typo="Typo.body2" Class="w-50">Full Name:</MudText>
+                <MudText Typo="Typo.body2" Class="w-50">@($"{Order.User.FullName}")</MudText>
+
+            </div>
+            <div class="d-flex justify-content-between">
+                <MudText Typo="Typo.body2" Class="w-50">Phone Number:</MudText>
+                <MudText Typo="Typo.body2" Class="w-50">@($"{Order.User.PhoneNumber}")</MudText>
+            </div>
+            <div class="d-flex justify-content-between">
+                <MudText Typo="Typo.body2" Class="w-50">Email Address:</MudText>
+                <MudText Typo="Typo.body2" Class="w-50">@($"{Order.User.Email}")</MudText>
+            </div>
+        </div>
+        <MudDivider />
+        <MudText Typo="Typo.body2" Style="font-weight: 900" Class="my-3">Payment Method</MudText>
+        <div class="my-3 d-flex justify-content-between">
+                <MudText Typo="Typo.body2" Class="w-50">Method:</MudText>
+                <MudText Typo="Typo.body2" Class="w-50">@Order.paymentType.ToString()</MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Close</MudButton>
+    </DialogActions>
+</MudDialog>
+    
+    @code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    void Cancel() => MudDialog.Cancel();
+
+    [Parameter] public OrderDTO Order { get; set; }
+    public AddressDTO Address = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        Address = Order.ShippingAddress;
+    }
+
+}

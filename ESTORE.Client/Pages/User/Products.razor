@@ -1,0 +1,170 @@
+﻿@inject IClientProductService ProductService
+@inject IClientCategoryService CategoryService
+@inject NavigationManager NavigationManager
+
+<PageTitle>All Products</PageTitle>
+<title>All Products</title>
+
+<MudGrid>
+    <MudItem sm="6" xs="12">
+        <MudText Typo="Typo.h6" Class="py-2 px-md-5">All Products</MudText>
+    </MudItem>
+    <MudItem sm="6" xs="12" Class="d-flex justify-content-end gap-2">
+        <MudSelect 
+                   T="CategoryDTO"
+                   Label="Category"
+                   Variant="Variant.Outlined"
+                   Style="width: 200px"
+                   Margin="Margin.Dense"
+                   @bind-Value="selectedCategory"
+                   SelectedValuesChanged="filterFromCategory">
+            <MudSelectItem Value="@selectedCategory" Class="d-none">@selectedCategory?.Name</MudSelectItem>
+            @foreach (var category in categories)
+            {
+                <MudSelectItem Value="@category">@category.Name</MudSelectItem>
+            }
+        </MudSelect>
+            <MudTextField T="string"
+                          Placeholder="Search Product"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Small"
+                          FullWidth
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          ValueChanged="@SearchProduct" />
+
+    </MudItem>
+</MudGrid>
+
+@if (isLoading)
+{
+
+    <MudGrid Class="px-2">
+        @for (int i = 0; i < 12; i++)
+        {
+            <MudItem lg="3" md="4" sm="6" xs="12">
+                <MudCard>
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="200px" />
+                    <MudCardContent Class="m-0">
+                        <MudSkeleton Width="30%" Height="42px;" />
+                        <MudSkeleton Width="80%" />
+                        <MudSkeleton Width="100%" />
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+}
+else if (filteredProducts.Count == 0 && !isLoading)
+{
+    <MudText Typo="Typo.subtitle1" Align="Align.Center" Class="mt-10"><em>No Product</em></MudText>
+}
+else
+{
+    <MudGrid Class="px-2">
+        @foreach (var product in filteredProducts)
+        {
+            <MudItem lg="3" md="4" sm="6" xs="12">
+                <MudCard Style="position: relative; cursor: pointer; height: 100%" Class="mud-card-hover" @onclick="@(() => ProductOverview(product.Id))">
+                    @if (product.Quantity <= 0)
+                    {
+                        <MudOverlay Visible="true" DarkBackground="true" Absolute="true">
+                            <MudText Align="Align.Center" Typo="Typo.h6" Class="text-uppercase" Style="@($"color:{Colors.BlueGrey.Lighten5}")">Out Of Stock</MudText>
+                        </MudOverlay>
+                    }
+                    <MudContainer Class="p-0">
+                        <MudImage Src="@(string.IsNullOrEmpty(product.ImageUrl) ? "./logo.png" : product.ImageUrl)" ObjectFit="ObjectFit.Contain" Style="height: 200px; width: 100%"></MudImage>
+                    </MudContainer>
+                    <MudCardContent>
+                        <div class="d-flex justify-content-between pb-2 gap-2">
+                            <MudText Typo="Typo.h6" Style="font-size: 16px !important">@Helpers.TruncateString(product.Name, 25)</MudText>
+                            <MudText Typo="Typo.h6" Color="Color.Error">@Helpers.FormatToPhilippinePeso(product.Price)</MudText>
+                        </div>
+
+                        <MudText Typo="Typo.caption" Class="truncate" Align="Align.Justify">@Helpers.TruncateString(product.Description, 100)</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
+
+}
+
+<style>
+    .mud-card-hover {
+        transition: transform 0.3s ease;
+    }
+
+        .mud-card-hover:hover {
+            transform: scale(1.05);
+        }
+</style>
+
+@code {
+    List<ProductDTO> products = new List<ProductDTO>();
+    List<ProductDTO> filteredProducts = new List<ProductDTO>();
+    public bool isLoading = false;
+
+    List<CategoryDTO> categories = new List<CategoryDTO>();
+    CategoryDTO selectedCategory = new CategoryDTO();
+
+    public string searchString { get; set; } = string.Empty;
+    CategoryDTO? filterCategory;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        var fetchedCategory = await CategoryService.GetAllCategory();
+        if (fetchedCategory != null)
+        {
+            categories = fetchedCategory;
+        }
+
+        await LoadProduct();
+    }
+
+    async Task LoadProduct()
+    {
+        var response = await ProductService.GetAllProducts();
+        if (response != null)
+        {
+            products = response;
+            filteredProducts = response;
+        }
+
+
+        isLoading = false;
+    }
+
+    void ProductOverview(int Id)
+    {
+        NavigationManager.NavigateTo($"/products/{Id}");
+    }
+
+    void SearchProduct(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            filteredProducts = products
+            .Where(p =>p.Name.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        }
+        else
+        {
+            filteredProducts = products;    
+        }
+    }
+
+    public async Task filterFromCategory()
+    {
+        if (selectedCategory != null)
+        {
+            filteredProducts = products
+           .Where(p => p.ProductCategory.Id == selectedCategory.Id)
+           .ToList();
+        }
+    }
+
+}

@@ -1,0 +1,130 @@
+﻿@page "/admin/category"
+
+@inject IClientCategoryService CategoryService
+@inject IDialogService DialogService
+
+<PageTitle>Categories</PageTitle>
+<title>Categories</title>
+
+<style>
+    .mud-table-head {
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+        padding: 5px;
+    }
+
+    .mud-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 20px 30px;
+    }
+</style>
+
+    <AuthorizeView Roles="SUPERUSER, ADMIN" Context="Parent">
+        <Authorized>
+        <MudText Typo="Typo.h6" Class="py-2 px-md-5">All Categories</MudText>
+
+    <MudTable Items="categories"
+              Hover="true"
+              Striped="true"
+              Class="mb-3"
+              Loading="@isLoading"
+              Breakpoint="Breakpoint.Sm">
+        <ToolBarContent>
+            <div>
+                    <AuthorizeView Roles="SUPERUSER" Context="Add">
+                        <MudButton OnClick="AddCategory"
+                                   Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")"
+                                   Variant="Variant.Filled"
+                                   Size="Size.Small"
+                                   Class="py-3">
+                            Add Category
+                        </MudButton>
+                    </AuthorizeView>
+            </div>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh> Name </MudTh>
+             <AuthorizeView Roles="SUPERUSER" Context="Auth">
+                        <MudTh colSpan="2"> Action </MudTh>
+             </AuthorizeView>
+        </HeaderContent>
+                <RowTemplate Context="Table">
+            <MudTd DataLabel="Name">@Table.Name</MudTd>
+            <AuthorizeView Roles="SUPERUSER" Context="Auth">
+                    <MudTd DataLabel="Action">
+                        <MudButton OnClick="() => EditCategory(Table)"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled">
+                            Edit
+                        </MudButton>
+                       @*  <MudButton OnClick="() => DeleteCategory(Table.Id)"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Variant="Variant.Filled">
+                            Delete
+                        </MudButton> *@
+                    </MudTd>
+            </AuthorizeView>
+        </RowTemplate>
+    </MudTable>
+        
+        </Authorized>
+        <NotAuthorized>
+           
+        </NotAuthorized>
+    </AuthorizeView>
+    
+
+@code {
+    private List<CategoryDTO> categories = new List<CategoryDTO>();
+    bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        await LoadCategory();
+    }
+
+    async Task LoadCategory()
+    {
+        var response = await CategoryService.GetAllCategory();
+        if (response != null)
+            categories = response;
+        isLoading = false;
+    }
+
+    async Task EditCategory(CategoryDTO cat)
+    {
+        var parameters = new DialogParameters
+            {
+                ["IsEdit"] = true,
+                ["Category"] = cat
+            };
+
+        var dialog = await DialogService.ShowAsync<CategoryDialog>("Edit Category", parameters);
+        var result = await dialog.Result;
+    }
+
+    async Task AddCategory()
+    {
+        var parameters = new DialogParameters
+            {
+                ["IsEdit"] = false,
+                ["Category"] = new CategoryDTO()
+            };
+
+        var dialog = await DialogService.ShowAsync<CategoryDialog>("Add Category", parameters);
+        var result = await dialog.Result;
+        await LoadCategory();
+    }
+
+    async void DeleteCategory(int Id)
+    {
+        await CategoryService.DeleteCategory((int)Id);
+        var itemToRemove = categories.Find(c => c.Id == Id);
+        categories.Remove(itemToRemove);
+        StateHasChanged();
+    }
+}

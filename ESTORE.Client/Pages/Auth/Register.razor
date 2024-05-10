@@ -1,0 +1,141 @@
+﻿@page "/create-account"
+
+@inject IClientAuthService ClientAuthService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Create Account</PageTitle>
+<title>Create Account</title>
+
+<EditForm Model="registerUser" OnValidSubmit="HandleSubmit">
+    <MudCard Class="pa-10 py-5 m-auto" MaxWidth="450px">
+        <MudCardHeader Class="px-0 text-center">
+            <CardHeaderContent>
+                <MudImage Src="./assets/logo.png" Style="width: 80px; height: 80px; cursor: pointer" Alt="Logo" />
+                <MudText Typo="Typo.caption" Class="d-block" Color="Color.Secondary">Simplified Business Consultancy</MudText>
+                <MudText Typo="Typo.h6">Create an account</MudText>
+
+                @if (error != null)
+                {
+                    <MudPaper Class="my-2 py-2" Style="@($"color:{Colors.BlueGrey.Darken3}; background:{Colors.Grey.Lighten4};")" Elevation="0">
+                        <MudText Typo="Typo.subtitle1" Align="Align.Center"><em>@error</em></MudText>
+                    </MudPaper>
+                }
+            </CardHeaderContent>
+        </MudCardHeader>
+        <DataAnnotationsValidator />
+        <div>
+            <MudTextField @bind-Value="@registerUser.FullName"
+                          Label="Name" Variant="Variant.Outlined"
+                          For="@(()=> registerUser.FullName)"
+                          Class="mb-5"
+                          Required="true" />
+        </div>
+        <div>
+            <MudTextField @bind-Value="@registerUser.UserName"
+                          Label="UserName" Variant="Variant.Outlined"
+                          For="@(()=> registerUser.UserName)"
+                          Class="mb-5"
+                          Required="true" />
+        </div>
+        <div>
+            <MudTextField @bind-Value="@registerUser.Email"
+                          Label="EmailAddress" Variant="Variant.Outlined"
+                          For="@(()=> registerUser.Email)"
+                          Class="mb-5"
+                          Required="true" />
+        </div>
+        <div>
+            <MudTextField @bind-Value="@registerUser.Password"
+                          InputType="@PasswordInput"
+                          Label="Password" Variant="Variant.Outlined"
+                          For="@(()=> registerUser.Password)"
+                          Class="mb-5"
+                          Required="true"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@PasswordInputIcon"
+                          OnAdornmentClick="ButtonTestclick"
+                          AdornmentAriaLabel="Show Password" />
+        </div>
+
+        <div class="d-grid gap-2 mt-3">
+            <MudButton Class="p-2" ButtonType="ButtonType.Submit" Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle1">REGISTER</MudText>
+                }
+            </MudButton>
+        </div>
+        <div class="d-flex">
+            <MudText Typo="Typo.subtitle1">Already have an account? </MudText>
+            <MudText Typo="Typo.subtitle1" Class="ml-2"><a href="/login" style="color: deepskyblue">Login</a></MudText>
+        </div>
+    </MudCard>
+</EditForm>
+
+@code {
+    public RegisterDTO registerUser = new RegisterDTO();
+
+    private AuthenticationState? authenticationState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authenticationState.User?.Identity?.IsAuthenticated == true)
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    bool isLoading = false;
+    string? error = null;
+    bool isShow;
+    InputType PasswordInput = InputType.Password;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void ButtonTestclick()
+    {
+        @if (isShow)
+        {
+            isShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+        else
+        {
+            isShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
+        }
+    }
+
+    async Task HandleSubmit()
+    {
+        isLoading = true;
+        error = null;
+        var response = await ClientAuthService.RegisterAccount(registerUser);
+        if (response != null)
+        {
+            error = response;
+        }
+        else
+        {
+            AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            ClientAuthService.User.Id = int.Parse(state.User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value!);
+
+        }
+       
+        isLoading = false;
+
+    }
+
+    void Login()
+    {
+        NavigationManager.NavigateTo("/login");
+    }
+
+}

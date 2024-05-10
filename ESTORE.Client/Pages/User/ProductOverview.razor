@@ -1,0 +1,203 @@
+﻿@page "/products/{Id:int}"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IClientProductService ProductService
+@inject IClientUserService UserService
+@inject IClientAuthService ClientAuthService
+@inject IClientCartService ClientCartService
+@inject IClientOrderService ClientOrderService
+
+<PageTitle>@CurrenProduct.Name</PageTitle>
+<title>@CurrenProduct.Name</title>
+
+    @if (isLoading)
+    {
+        <MudPaper>
+            <MudGrid Class="px-5 py-2">
+                <MudItem md="6" sm="12">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="580px" Width="100%" /> 
+                </MudItem>
+                <MudItem md="6" sm="12">
+                    <MudContainer Class="py-5">
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="60%" Height="50px"/>
+                        <MudSkeleton SkeletonType="SkeletonType.Text" Width="70%" Height="50px" />
+
+                        <MudContainer Class="px-5 py-3 mt-5 rounded-lg" Style="@($"background:{Colors.BlueGrey.Lighten5};")">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="30%" Height="40px"/>
+                        </MudContainer>
+                        <MudContainer Class="p-0 mt-10">
+                            <MudSkeleton SkeletonType="SkeletonType.Text" Width="40%" Height="40px" />
+                        </MudContainer>
+                            <MudContainer Class="d-flex gap-4 w-100 m-0 p-0" Style="margin-top: 80px !important;">
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" Width="45%" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" Width="45%" />
+                            </MudContainer>
+                    </MudContainer>
+                </MudItem>
+            </MudGrid>
+            <MudDivider />
+            <MudContainer Class="px-10">
+                <MudSkeleton SkeletonType="SkeletonType.Text" Width="30%" />
+                <MudSkeleton SkeletonType="SkeletonType.Text" Height="50px" Width="80%"/>
+            </MudContainer>
+        </MudPaper>
+    }
+    else
+    {
+        <MudPaper>
+            <MudGrid Class="px-5 py-2">
+                <MudItem md="6" sm="12">
+                    @if (isLoading)
+                    {
+                        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="580px" Width="100%" />
+                    }
+                    else
+                    {
+                        <MudImage Src="@CurrenProduct.ImageUrl" Style="width: 100%; height: 100%" />
+                    }
+                </MudItem>
+                <MudItem md="6" sm="12">
+                    <MudContainer Class="py-5">
+                        <MudText Typo="Typo.h6">@CurrenProduct.Name</MudText>
+                        <MudContainer Class="px-5 py-4 mt-5 rounded-lg" Style="@($"background:{Colors.BlueGrey.Lighten5};")">
+                            <MudText Typo="Typo.h5"
+                                     Color="Color.Error">@Helpers.FormatToPhilippinePeso(CurrenProduct.Price)</MudText>
+                        </MudContainer>
+                            <MudContainer Class="p-0 mt-10 d-flex">
+                                <MudText Typo="Typo.subtitle1">Quantity: </MudText>
+                                <MudContainer Class="d-flex gap-2">
+                                    <MudButton OnClick="RemoveQuantity" Style="@($"background:{Colors.BlueGrey.Lighten5}; border-radius: 0px; min-width: 0;")" Size="Size.Small"><MudIcon Size="Size.Small" Icon="@Icons.Material.Filled.Remove" Title="Remove" /></MudButton>
+                                    <MudText Typo="Typo.subtitle1">@Quantity</MudText>
+                                    <MudButton OnClick="AddQuantity" Style="@($"background:{Colors.BlueGrey.Lighten4}; border-radius: 0px; min-width: 0;")" Size="Size.Small"><MudIcon Size="Size.Small" Icon="@Icons.Material.Filled.Add" Title="Add" /></MudButton>
+                                </MudContainer>
+                            </MudContainer>
+                            @if (Quantity == CurrenProduct.Quantity)
+                            {
+                                <MudText Typo="Typo.subtitle1" Color="Color.Warning" Class="mt-5"><em>Maximum Stock has been reached</em></MudText>
+                            }
+
+                            <MudContainer Class="d-flex p-0 mt-10">
+                                <MudText Typo="Typo.subtitle1">Subtotal: </MudText>
+                                <MudText Typo="Typo.subtitle1" Style="padding: 0 24px" Color="Color.Error">@Helpers.FormatToPhilippinePeso(Subtotal)</MudText>
+                            </MudContainer>
+
+                            <MudContainer Class="d-flex gap-4 w-100 m-0 p-0" Style="margin-top: 50px !important;">
+                                <MudButton ButtonType="ButtonType.Button"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Secondary"
+                                           FullWidth
+                                           StartIcon="@Icons.Material.Outlined.ShoppingCart"
+                                           Style="@($"color:{Colors.BlueGrey.Darken4}; ")"
+                                           Class="py-3"
+                                           OnClick="AddToCart"
+                                           Disabled="@(addToCartLoading)">Add To Cart</MudButton>
+                                <MudButton ButtonType="ButtonType.Button"
+                                           Variant="Variant.Filled"
+                                           Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")"
+                                           Class="py-3"
+                                           FullWidth
+                                           OnClick="BuyNow"
+                                           Disabled="@(addOrderLoading)">Buy Now</MudButton>
+                            </MudContainer>
+                    </MudContainer>
+                </MudItem>
+            </MudGrid>
+            <MudDivider Class="my-5"/>
+            <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="px-10 pb-10">
+                <MudText Typo="Typo.subtitle1"><strong>Description</strong></MudText>
+                <MudText Typo="Typo.subtitle1" Style="white-space: pre-wrap;">@CurrenProduct.Description</MudText>
+            </MudContainer>
+
+        </MudPaper>
+
+    }
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+    bool isLoading = false;
+    bool addToCartLoading = false;
+    bool addOrderLoading = false;
+    public ProductDTO CurrenProduct = new ProductDTO();
+    public CartItemDTO CartItem = new CartItemDTO();
+    AuthenticationState state;
+
+
+    public int Quantity = 1;
+    public float Subtotal = 0;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != null)
+        {
+            isLoading = true;
+            var response = await ProductService.GetProductById((int)Id);
+            if (response != null)
+            {
+                CurrenProduct = response;
+                Subtotal = CurrenProduct.Price * Quantity;
+            }
+
+        }
+        state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        isLoading = false;
+    }
+
+    void AddQuantity()
+    {
+        if (Quantity < CurrenProduct.Quantity)
+        {
+            Quantity += 1;
+            Subtotal = CurrenProduct.Price * Quantity;
+
+        }
+
+    }
+    void RemoveQuantity()
+    {
+        if (Quantity > 1)
+        {
+            Quantity -= 1;
+            Subtotal = CurrenProduct.Price * Quantity;
+        }
+    }
+    async Task AddToCart()
+    {
+        addToCartLoading = true;
+        if(state.User.Identity.IsAuthenticated == false)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+        CartItem = new CartItemDTO()
+        {
+            UserId =  ClientAuthService.User.Id, 
+            Product = CurrenProduct,
+            Quantity = Quantity,
+            Subtotal = Subtotal,
+        };
+
+        await ClientCartService.AddCartItemToCart(CartItem);
+        NavigationManager.NavigateTo("/my-cart");
+        addToCartLoading = false;
+    }
+    async Task BuyNow()
+    {
+        addOrderLoading = true;
+        if (state.User.Identity.IsAuthenticated == false)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+        OrderItemDTO orderItem = new OrderItemDTO()
+        {
+            Product = CurrenProduct,
+            Quantity = Quantity,
+            Subtotal = Subtotal
+        };
+
+        await ClientOrderService.AddDirecOrderItem(orderItem, Subtotal+500, Subtotal, 500);
+        NavigationManager.NavigateTo("/checkout");
+        addOrderLoading = false;
+    }
+}

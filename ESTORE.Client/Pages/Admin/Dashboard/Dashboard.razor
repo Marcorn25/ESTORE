@@ -1,0 +1,117 @@
+﻿@inject IClientDashboardService DashboardService
+
+<PageTitle>Dashboard</PageTitle>
+<title>Dashboard</title>
+
+    @if (isLoading == false)
+    {
+    <MudText Typo="Typo.h6" Class="py-2 px-md-5">Dashboard</MudText>
+
+    <MudGrid Class="p-3">
+        <MudItem lg="4" xs="12">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle1">No. of Products</MudText>
+                    <MudText Typo="Typo.h3">@dashboard.NoOfProducts</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem lg="4" xs="12">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.subtitle1">No. of Users</MudText>
+                    <MudText Typo="Typo.h3">@dashboard.NoOfUsers</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+   @*  <MudText Typo="Typo.h6" Class="py-2 px-md-5">Sales</MudText> *@
+
+    <MudGrid Class="p-3">
+        <MudItem lg="6" xs="12" Class="gap-5">
+            <MudText Typo="Typo.subtitle1" Class="mb-3 fw-bold">Order Status</MudText>
+
+            <MudCard Class="mb-2">
+                <MudCardContent Class="d-flex gap-1 align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.PendingActions" Size="Size.Large"/>
+                    <MudContainer>
+                    <MudText Typo="Typo.subtitle1">Processing</MudText>
+                     <MudText Typo="Typo.subtitle2">@dashboard.SalesProduct.NoOfProcessing</MudText>
+                    </MudContainer>
+                </MudCardContent>
+            </MudCard>
+            <MudCard Class="mb-2">
+                    <MudCardContent Class="d-flex gap-1 align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCartCheckout" Size="Size.Large" />
+                        <MudContainer>
+                            <MudText Typo="Typo.subtitle1">Preparing</MudText>
+                            <MudText Typo="Typo.subtitle2">@dashboard.SalesProduct.NoOfPreparing</MudText>
+                        </MudContainer>
+                    </MudCardContent>
+            </MudCard>
+            <MudCard Class="mb-2">
+                    <MudCardContent Class="d-flex gap-1 align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.DeliveryDining" Size="Size.Large" />
+                        <MudContainer>
+                            <MudText Typo="Typo.subtitle1">Out For Delivery</MudText>
+                            <MudText Typo="Typo.subtitle2">@dashboard.SalesProduct.NoOfDelivery</MudText>
+                        </MudContainer>
+                    </MudCardContent>
+            </MudCard>
+            <MudCard Class="mb-2">
+                    <MudCardContent Class="d-flex gap-1 align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Large" />
+                        <MudContainer>
+                            <MudText Typo="Typo.subtitle1">Delivered</MudText>
+                            <MudText Typo="Typo.subtitle2">@dashboard.SalesProduct.NoOfDelivered</MudText>
+                        </MudContainer>
+                    </MudCardContent>
+            </MudCard>
+            <MudCard Class="mb-2">
+                    <MudCardContent Class="d-flex gap-1 align-center">
+                        <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Large" />
+                        <MudContainer>
+                            <MudText Typo="Typo.subtitle1">Cancelled</MudText>
+                            <MudText Typo="Typo.subtitle2">@dashboard.SalesProduct.NoOfCancelled</MudText>
+                        </MudContainer>
+                    </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem lg="6" xs="12" Class="gap-5">
+                <MudText Typo="Typo.subtitle1" Class="mb-3 fw-bold">Top Ordered Products</MudText>
+            <MudTable Hover Items="dashboard.mostOrderedProducts">
+                <HeaderContent>
+                    <MudTh> Image </MudTh>
+                    <MudTh> Name </MudTh>
+                    <MudTh> Price </MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Image">
+                        <MudImage Src="@context.ImageUrl" Height="50"></MudImage>
+                    </MudTd>
+                    <MudTd DataLabel="Name">@Helpers.TruncateString(context.Name, 80)</MudTd>
+                    <MudTd DataLabel="Price">@Helpers.FormatToPhilippinePeso(context.Price)</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+    } 
+    else
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="m-0" />
+    }
+
+@code {
+    public DashboardDTO dashboard = new DashboardDTO();
+    bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        var response = await DashboardService.GetAdminStat();
+        if (response != null)
+            dashboard = response;
+        isLoading = false;
+    }
+}

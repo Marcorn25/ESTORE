@@ -1,0 +1,90 @@
+﻿@inherits LayoutComponentBase
+
+@inject NavigationManager NavigationManager
+
+<MudThemeProvider/>
+<MudDialogProvider/>
+<MudSnackbarProvider/>
+<style>
+    .navBar {
+        background-color: rgba(255, 255, 255, 0.1);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+    }
+</style>
+
+  <MudLayout>
+    <MudAppBar Class="navBar" Elevation="4">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="p-0">
+            <div class="d-flex justify-content-between align-items-center w-100">
+                <div class="d-flex align-items-center">
+                    <AuthorizeView Roles="SUPERUSER, ADMIN, USER">
+                     <Authorized> 
+                            <MudTooltip Text="Menu" Arrow="true">
+                                <MudImage Src="./assets/nav/menu.png" Style="width: 24px; height: 24px; cursor: pointer; margin-right: 10px" Alt="Menu Icon" @onclick="@((e) => DrawerToggle())" />
+                            </MudTooltip>
+                            <MudHidden Breakpoint="Breakpoint.MdAndDown">
+                                <MudText Typo="Typo.body1" Color="Color.Dark">
+                                    SIMPLIFIED BUSINESS CONSULTANCY
+                                </MudText>
+                            </MudHidden>
+
+                            <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                                <MudText Typo="Typo.body1" Color="Color.Dark">
+                                    SBC
+                                </MudText>
+                            </MudHidden>
+                     </Authorized>
+                     <NotAuthorized>
+                            <MudTooltip Text="Home" Arrow="true">
+                                <MudImage Src="./assets/logo.png" Style="width: 40px; height: 40px; cursor: pointer" Alt="Logo" @onclick="@(() => NavigationManager.NavigateTo("/"))" />
+                            </MudTooltip>
+                     </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+                <div class="d-flex align-items-center">
+                    <AuthorizeView Roles="USER">
+                            <MudContainer Class="d-flex align-content-center gap-4">
+                                <MudTooltip Text="Cart" Arrow="true">
+                                    <MudImage Src="./assets/cart.png" Style="width: 24px; height: 24px; cursor: pointer" Alt="Cart Icon" @onclick="@(() => NavigationManager.NavigateTo("/my-cart"))" />
+                                </MudTooltip>
+                               @*  <MudTooltip Text="Account" Arrow="true">
+                                    <MudImage Src="./assets/user.png" Style="width: 24px; height: 24px; cursor: pointer" Alt="User Icon" />
+                                </MudTooltip> *@
+                            </MudContainer>
+                    </AuthorizeView>
+                    <AuthorizeView>
+                        <NotAuthorized>
+                            <MudPaper Square="true" Class="d-flex justify-space-around gap-2 align-content-center" Elevation="0">
+                                <MudButton OnClick="@(() => NavigationManager.NavigateTo("/login"))">Login</MudButton>
+                                <MudDivider Vertical="true" Style="height: 30px; width: 2px"/>
+                                <MudButton OnClick="@(() => NavigationManager.NavigateTo("/create-account"))">Register</MudButton>
+                            </MudPaper>
+                        </NotAuthorized>
+                    </AuthorizeView>
+                </div>
+            </div>
+        </MudContainer>
+    </MudAppBar>
+    <AuthorizeView>
+        <MudDrawer Id="drawer" @bind-Open="@_drawerOpen">
+            <NavMenu />
+        </MudDrawer>
+    </AuthorizeView>
+        <MudMainContent >
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="h-100 mt-10">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+
+@code{
+
+    bool _drawerOpen = true;
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+}

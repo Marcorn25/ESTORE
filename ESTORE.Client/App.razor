@@ -1,0 +1,34 @@
+﻿@inject IClientAuthService ClientAuthService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime jsRuntime
+
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageNotFound />
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+@code
+{
+    protected override async void OnInitialized()
+    {
+        if (string.IsNullOrEmpty(ClientAuthService.Token.Value))
+        {
+            var cookieValue = await jsRuntime.InvokeAsync<string>("getCookie", "Token");
+            if (!string.IsNullOrEmpty(cookieValue))
+            {
+                ClientAuthService.Token.Value = cookieValue;
+                AuthenticationState auth_state = await AuthStateProvider.GetAuthenticationStateAsync();
+                ClientAuthService.User.Id = int.Parse(auth_state.User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value!);
+            }
+        }
+    }
+}

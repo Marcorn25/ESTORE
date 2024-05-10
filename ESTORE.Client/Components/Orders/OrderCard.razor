@@ -1,0 +1,128 @@
+﻿@inject NavigationManager NavigationManager
+@inject IDialogService DialogService
+@inject IClientOrderService ClientOrderService
+
+
+ @if(isLoading == true)
+{
+    <div class="d-flex align-items-center justify-content-center" style="width: 100%; height: 50vh;">
+        <MudProgressCircular Color="Color.Primary" Style="height:70px;width:70px;" Indeterminate="true" />
+    </div>
+}
+else if (orders.Count == 0 && isLoading == false)
+{
+    <div class="d-flex row justify-content-center mt-10">
+        <MudImage Src="./assets/out-of-stock.png" Style="max-width: 200px;" />
+        <MudText Typo="Typo.h6" Align="Align.Center" Class="mt-5">Your Order is empty</MudText>
+        <MudButton OnClick="@(()=>NavigationManager.NavigateTo("/"))"
+                   Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4}; max-width:200px")"
+                   Class="mt-5" Variant="Variant.Filled">
+            Continue Shopping
+        </MudButton>
+    </div>
+}
+else
+{       
+    @foreach (var order in orders)
+    {
+
+        <MudContainer MaxWidth="MaxWidth.Medium" Class="mb-5 md-p-0 md-mx-0 mt-10">
+            <MudCard Elevation="1">
+                <MudCardHeader Class="d-flex justify-content-between flex-wrap p-3" Style="@($"background: {Colors.Grey.Lighten5};")">
+                    <div Class="d-flex gap-5 flex-wrap">
+                        <div>
+                            <MudText Typo="Typo.subtitle2">Order Number</MudText>
+                            <MudText Typo="Typo.caption">@order.Id</MudText>
+                        </div>
+                        <div>
+                            <MudText Typo="Typo.subtitle2">Date Ordered</MudText>
+                            <MudText Typo="Typo.caption">@Helpers.ToLongDateString(order.DateOrdered)</MudText>
+                        </div>
+                        <div>
+                            <MudText Typo="Typo.subtitle2">Total</MudText>
+                            <MudText Typo="Typo.caption">@Helpers.FormatToPhilippinePeso(order.Total)</MudText>
+                        </div>
+                    </div>
+                    @*  <MudChip Text="green" Color="@GetStatusColor(order.Status ?? OrderStatus.PENDING)">@order.Status</MudChip> *@
+                    <div class="d-flex gap-2">
+                        @if (order.Status.ToString() != "CANCELLED")
+                        {
+                            <MudButton OnClick="@(()=>ViewOrderDetails(order))"
+                                       Style="@($"color:{Colors.BlueGrey.Darken4}; max-width:200px")"
+                                       Class="mt-5 mr-3"
+                                       Variant="Variant.Outlined">
+                                Order Details
+                            </MudButton>
+                        }
+                        @if (order.Status == 0)
+                        {
+                            <MudButton Style="@($"color: {Colors.BlueGrey.Darken4}; max-width:200px")"
+                                       Class="mt-5"
+                                       OnClick="@(()=>CancelOrder(order))">
+                                Cancel
+                            </MudButton>
+                        }
+                    </div>
+                </MudCardHeader>
+                <MudDivider />
+                <MudCardContent>
+                    @foreach (var item in order.OrderItems)
+                    {
+                        <MudContainer Class="p-0 m-0">
+                            <MudGrid Class="py-5 my-5">
+                                <MudItem md="3">
+                                    <MudImage Src="@item.Product.ImageUrl" Class="w-100" Style="height: 150px" ObjectFit="ObjectFit.Contain" />
+                                </MudItem>
+                                <MudItem md="9" Class="px-5">
+                                    <MudText Typo="Typo.subtitle2">@item.Product.Name</MudText>
+                                    <MudText Typo="Typo.subtitle1" Class="mt-4">Price: @Helpers.FormatToPhilippinePeso(item.Product.Price)</MudText>
+                                    <MudText Typo="Typo.subtitle1">Quantity: @item.Quantity</MudText>
+                                    <MudText Typo="Typo.subtitle1">Total: <span style="color: red">@Helpers.FormatToPhilippinePeso(item.Subtotal)</span></MudText>
+                                    <div class="float-end">
+                                        <MudButton OnClick="@(()=>NavigationManager.NavigateTo($"/products/{item.ProductId}"))"
+                                                   Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4}; max-width:200px")"
+                                                   Class="mt-5 mr-3"
+                                                   Variant="Variant.Filled">
+                                            View Product
+                                        </MudButton>
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+                        </MudContainer>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudContainer>
+    }
+}
+
+@code{
+    [Parameter]
+    public List<OrderDTO> orders { get; set; } = new List<OrderDTO>();
+
+    [Parameter]
+    public bool isLoading { get; set; } = false;
+
+    //View Order Details
+    private void ViewOrderDetails(OrderDTO selectedOrder)
+    {
+        var parameters = new DialogParameters<Modal>();
+        parameters.Add(x => x.Order, selectedOrder);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Medium };
+
+        DialogService.Show<Modal>("", parameters, options);
+    }
+
+    //Cancel Order
+    async void CancelOrder(OrderDTO order)
+    {
+        var cancel = await ClientOrderService.CancelUserOrder(order);
+        if (cancel == 1)
+        {
+            orders.Remove(order);
+            StateHasChanged();
+        }
+    }
+
+}

@@ -1,0 +1,6 @@
+@ESTORE.Server_HostAddress = http://localhost:5056
+
+GET {{ESTORE.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

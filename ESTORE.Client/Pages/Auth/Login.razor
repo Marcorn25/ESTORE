@@ -1,0 +1,119 @@
+﻿@page "/login"
+
+@inject NavigationManager NavigationManager
+@inject IClientAuthService ClientAuthService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Login</PageTitle>
+<title>Login</title>
+
+<EditForm Model="loginUser" OnValidSubmit="HandleSubmit">
+    <MudCard Class="pa-10 m-auto" Style="margin-top: 50px !important" MaxWidth="450px">
+        <MudCardHeader Class="px-0 text-center">
+            <CardHeaderContent>
+                <MudImage Src="./assets/logo.png" Style="width: 80px; height: 80px; cursor: pointer" Alt="Logo" />
+                <MudText Typo="Typo.caption" Class="d-block" Color="Color.Secondary">Simplified Business Consultancy</MudText>
+                <MudText Typo="Typo.h6">Welcome back</MudText>
+
+                @if (error != null)
+                {
+                    <MudPaper Class="my-2 py-2" Style="@($"color:{Colors.BlueGrey.Darken3}; background:{Colors.Grey.Lighten4};")" Elevation="0">
+                        <MudText Typo="Typo.subtitle1" Align="Align.Center"><em>@error</em></MudText>
+                    </MudPaper>
+                }
+            </CardHeaderContent>
+        </MudCardHeader>
+        <DataAnnotationsValidator />
+        <div>
+            <MudTextField @bind-Value="@loginUser.EmailOrUsername"
+                          Label="Email / Username" Variant="Variant.Outlined"
+                          For="@(()=> loginUser.EmailOrUsername)"
+                          Class="mb-5"
+                          Required="true"/>
+        </div>
+        <div>
+            <MudTextField @bind-Value="@loginUser.Password"
+                          InputType="@PasswordInput"
+                          Label="Password" Variant="Variant.Outlined"
+                          For="@(()=> loginUser.Password)"
+                          Class="mb-5"
+                          Required="true"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@PasswordInputIcon"
+                          OnAdornmentClick="ButtonTestclick"
+                          AdornmentAriaLabel="Show Password"/>
+        </div>
+
+        <div class="d-grid gap-2 mt-3">
+            <MudButton Class="p-2" ButtonType="ButtonType.Submit" Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")" disabled="@isLoading">
+                @if (isLoading)
+                {
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" />
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle1">LOGIN</MudText>
+                }
+            </MudButton>
+        </div>
+        <div class="d-flex justify-content-center">
+            <MudText Typo="Typo.subtitle1">Don't have an account? </MudText>
+            <MudText Typo="Typo.subtitle1" Class="ml-2"><a href="/create-account" style="color: deepskyblue">Register</a></MudText>
+        </div>
+    </MudCard>
+</EditForm>
+
+
+@code {
+    public LoginDTO loginUser = new LoginDTO();
+
+    private AuthenticationState? authenticationState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        if (authenticationState.User?.Identity?.IsAuthenticated == true)
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    bool isLoading = false;
+    bool isShow;
+    string? error = null;
+    InputType PasswordInput = InputType.Password;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    void ButtonTestclick()
+    {
+        @if (isShow)
+        {
+            isShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+        else
+        {
+            isShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
+        }
+    }
+
+    async Task HandleSubmit()
+    {
+        isLoading = true;
+        error = null;
+
+        var response = await ClientAuthService.LoginAccount(loginUser);
+        if (response != null)
+        {
+            error = response;
+        }
+
+        AuthenticationState state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        // ClientAuthService.User.Id = int.Parse(state.User.Claims.First(c => c.Type == ClaimTypes.NameIdentifier).Value!);
+        isLoading = false;
+    }
+
+}

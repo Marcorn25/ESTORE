@@ -1,0 +1,29 @@
+﻿@page "/order-success"
+
+@inject NavigationManager NavigationManager
+
+<PageTitle>Order Success</PageTitle>
+<title>Order Success</title>
+
+<AuthorizeView>
+    <Authorized>
+        <div class="d-flex row justify-content-center py-10">
+            <MudImage Src="./assets/order-success.png" Style="max-width: 200px" />
+            <MudText Typo="Typo.h6" Align="Align.Center" Class="mt-5">Thank you for shopping</MudText>
+            <MudText Align="Align.Center">Your order has been successfully placed and is now being processed</MudText>
+            <MudButton OnClick="@(()=>NavigationManager.NavigateTo("/my-orders"))"
+                       Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4}; max-width:200px")"
+                       Class="mt-5" Variant="Variant.Filled">
+                Go to My Orders
+            </MudButton>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+
+}

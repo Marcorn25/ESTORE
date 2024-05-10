@@ -1,0 +1,152 @@
+﻿@page "/admin/products"
+
+@inject NavigationManager NavigationManager
+@inject IClientProductService ProductService
+
+<PageTitle>All Products</PageTitle>
+<title>All Products</title>
+
+<style>
+    .mud-table-head {
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc; 
+        padding: 5px;
+    }
+
+    .mud-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 20px 30px;
+    }
+</style>
+
+    <MudText Typo="Typo.h6" Class="py-2 px-md-5">All Products</MudText>
+
+    <MudTable Items="products"
+              Hover="true"
+              Striped="true"
+              Class="mb-3"
+              Loading="@isLoading"
+              Breakpoint="Breakpoint.Sm"
+              Filter="new Func<ProductDTO,bool>(FilterFunc)">
+    <ToolBarContent>
+        <div class="d-flex gap-4 py-2">
+            <AuthorizeView Roles="SUPERUSER">
+                <MudButton OnClick="AddProduct"
+                           Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")"
+                           Variant="Variant.Filled"
+                           Size="Size.Small">
+                    Add Product
+                </MudButton>
+            </AuthorizeView>
+            <MudTextField T="string" 
+                          Placeholder="Search" 
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search" 
+                          IconSize="Size.Small" 
+                          Style="width: 300px" 
+                          Variant="Variant.Outlined" 
+                          Margin="Margin.Dense"
+                          @bind-Value="searchString" />
+        </div>
+    </ToolBarContent>
+        <ColGroup>
+            <col />
+            <col style="width: 30%;" />
+            <col />
+            <col />
+            <col />
+        </ColGroup>
+        <HeaderContent>
+            <MudTh> Image </MudTh>
+            <MudTh> Name </MudTh>
+            <MudTh> Price </MudTh>
+            <MudTh> Quantity </MudTh>
+            <MudTh> Category </MudTh>
+            <AuthorizeView Roles="SUPERUSER">
+                <MudTh colSpan="2"> Action </MudTh>
+            </AuthorizeView>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Image">
+                <MudImage Src="@context.ImageUrl" Height="50"></MudImage>
+            </MudTd>
+            <MudTd DataLabel="Name">@Helpers.TruncateString(context.Name, 80)</MudTd>
+            <MudTd DataLabel="Price">@Helpers.FormatToPhilippinePeso(context.Price)</MudTd>
+            <MudTd DataLabel="Stock">@context.Quantity</MudTd>
+            <MudTd DataLabel="Category">@context.ProductCategory.Name</MudTd>
+            <AuthorizeView Roles="SUPERUSER" Context="Auth">
+                <Authorized>
+                    <MudTd DataLabel="Action">
+                        <MudButton OnClick="() => EditProduct(context.Id)"
+                                   StartIcon="@Icons.Material.Filled.Edit"
+                                   Color="Color.Primary"
+                                   Variant="Variant.Filled">
+                            Edit
+                        </MudButton>
+                        <MudButton OnClick="() => DeleteProduct(context.Id)"
+                                   StartIcon="@Icons.Material.Filled.Delete"
+                                   Color="Color.Error"
+                                   Variant="Variant.Filled">
+                            Delete
+                        </MudButton>
+                    </MudTd>
+                </Authorized>
+                <NotAuthorized>
+                    <MudTh></MudTh>
+                </NotAuthorized>
+            </AuthorizeView>
+        </RowTemplate>
+    </MudTable>
+
+
+
+
+@code {
+    List<ProductDTO> products = new List<ProductDTO>();
+
+    public bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        await Task.Delay(1000);
+        await LoadProduct();
+    }
+
+    async Task DeleteProduct(int id)
+    {
+        await ProductService.DeleteProduct(id);
+        await LoadProduct();
+    }
+
+    async Task LoadProduct()
+    {
+        var response = await ProductService.GetAllProducts();
+        if (response != null)
+            products = response;
+        isLoading = false;
+    }
+
+    void AddProduct()
+    {
+        NavigationManager.NavigateTo("/admin/add-product");
+    }
+    void EditProduct(int id)
+    {
+        NavigationManager.NavigateTo($"/admin/edit-product/{id}");
+
+    }
+
+    private string searchString = "";
+
+    private bool FilterFunc(ProductDTO element)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+}

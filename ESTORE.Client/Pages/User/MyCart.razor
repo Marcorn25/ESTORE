@@ -1,0 +1,181 @@
+﻿@page "/my-cart"
+
+@inject IClientUserService UserService
+@inject IClientCartService ClientCartService
+@inject IClientAuthService ClientAuthService
+@inject IClientOrderService ClientOrderService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Cart</PageTitle>
+<title>Cart</title>
+
+<AuthorizeView>
+    <Authorized>
+         <MudText Typo="Typo.h6" Class="py-2 px-md-5">Your Cart</MudText>
+    @if (cartItems.Count == 0 && !isLoading)
+    {
+            <div class="d-flex row justify-content-center mt-10">
+                <MudImage Src="./assets/shopping-bag.png" Style="max-width: 200px;" />
+                <MudText Typo="Typo.h6" Align="Align.Center" Class="mt-5">No Item From Cart</MudText>
+                <MudButton OnClick="@(()=>NavigationManager.NavigateTo("/"))"
+                           Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4}; max-width:200px")"
+                           Class="mt-5" Variant="Variant.Filled">
+                    Continue Shopping
+                </MudButton>
+            </div>
+    }
+    else
+    {
+        <MudGrid Class="my-3">
+            <MudItem lg="8" md="12" Style="overflow-x: scroll">
+            <MudTable @ref="table"
+                      T="CartItemDTO"
+                      Items="cartItems"
+                      Hover="true"
+                      Loading="@isLoading"
+                      Breakpoint="Breakpoint.None"
+                      Elevation="0"
+                      MultiSelection="true"
+                      SelectedItems="selectedItems"
+                      SelectedItemsChanged="OnSelectItem"
+                      OnRowClick="OnSelectItem"
+                      RowClass="cursor-pointer"
+                      Style="min-width: 600px">
+
+                <ColGroup>
+                    <col />
+                    <col style="width: 40%;" />
+                    <col />
+                    <col />
+                </ColGroup>
+
+                <RowTemplate Context="CartItem">
+                    <MudTd DataLabel="Product" Class="d-flex gap-3">
+                                <MudImage Src="@CartItem.Product?.ImageUrl" Height="50"></MudImage>
+                        <div>
+                            <MudText Typo="Typo.subtitle2">@Helpers.TruncateString(CartItem.Product?.Name, 20)</MudText>
+                            @if (CartItem.Product?.Price >= 0)
+                            {
+                               <MudText Typo="Typo.body1">Price: @Helpers.FormatToPhilippinePeso(CartItem.Product.Price)</MudText>
+                            }
+                            <MudText Typo="Typo.body1">Qty: @CartItem.Quantity pc/s</MudText>
+                        </div>
+                    </MudTd>
+
+                    <MudTd DataLabel="Subtotal" Style="font-weight: 700">@Helpers.FormatToPhilippinePeso(CartItem.Subtotal)</MudTd>
+                    <MudTd DataLabel="Remove">
+                        <MudButton Style="@($"color: {Colors.Red.Default}")" OnClick="@(()=>RemoveCartItem(CartItem.Id))">
+                            Remove
+                        </MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            </MudItem>
+            <MudItem lg="4" md="12" xs="12" Class="px-10">
+            <MudCard Class="p-3 m-auto">
+                <MudCardHeader>
+                    <MudText Typo="Typo.h6">Order Summary</MudText>
+                </MudCardHeader>
+                <MudCardContent>
+                    <div class="d-flex justify-content-between my-4">
+                        <MudText Typo="Typo.body2">Subtotal</MudText>
+                        <MudText Typo="Typo.body2">@Helpers.FormatToPhilippinePeso(Subtotal)</MudText>
+                    </div>
+                    <div class="d-flex justify-content-between my-4">
+                        <MudText Typo="Typo.body2">Shipping Fee</MudText>
+                        <MudText Typo="Typo.body2">@Helpers.FormatToPhilippinePeso(ShippingFee)</MudText>
+                    </div>
+                    <MudDivider></MudDivider>
+                    <div class="d-flex justify-content-between my-4">
+                        <MudText Typo="Typo.body2" Style="font-weight: 900">Total</MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight: 900">@Helpers.FormatToPhilippinePeso(Total)</MudText>
+                    </div>
+                    <MudButton OnClick="PlaceOrderHandler"
+                               Variant="Variant.Filled"
+                               Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")"
+                               FullWidth
+                               Class="mt-10"
+                               Disabled="@(selectedItems.Count == 0 || addToCart)">
+                        Checkout
+                    </MudButton>
+                    <MudButton OnClick="@(()=> NavigationManager.NavigateTo("/"))"
+                               FullWidth
+                               Class="mt-4">
+                        Continue Shopping
+                    </MudButton>
+                </MudCardContent>
+            </MudCard>
+            </MudItem>
+        </MudGrid>
+    } 
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+   
+
+@code {
+    public List<CartItemDTO> cartItems = new List<CartItemDTO>();
+    private HashSet<CartItemDTO> selectedItems = new HashSet<CartItemDTO>();
+    private MudTable<CartItemDTO> table;
+
+    public float Subtotal = 0;
+    public float Total = 0;
+    public float ShippingFee = 500;
+    public bool isLoading = false;
+    int UserId;
+    bool addToCart = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        if (string.IsNullOrEmpty(ClientAuthService.Token.Value))
+        {
+            var cookieValue = await JSRuntime.InvokeAsync<string>("getCookie", "Token");
+            if (!string.IsNullOrEmpty(cookieValue))
+                ClientAuthService.Token.Value = cookieValue;
+
+        }
+        UserId = ClientAuthService.User.Id;
+        await LoadCartItem();
+    }
+
+    async Task LoadCartItem()
+    {
+        if (UserId != null)
+        {
+            var response = await ClientCartService.GetItemsFromCart(UserId);
+            if (response != null)
+                cartItems = response;
+        }
+        isLoading = false;
+    }
+    void OnSelectItem()
+    {
+        Subtotal = selectedItems.Sum(item => item.Subtotal);
+        Total = Subtotal + ShippingFee;
+    }
+
+    async Task PlaceOrderHandler()
+    {
+        addToCart = true;
+        await ClientOrderService.AddOrderItem(selectedItems, Subtotal, Total, ShippingFee);
+        NavigationManager.NavigateTo("/checkout");
+        addToCart = false;
+    }
+
+    async Task RemoveCartItem(int Id)
+    {
+        var response = await ClientCartService.RemoveCartItem(Id);
+        if (response == 1)
+        {
+            var itemToRemove = cartItems.FirstOrDefault(c => c.Id == Id);
+            cartItems.Remove(itemToRemove);
+            selectedItems.Remove(itemToRemove);
+        }
+    }
+}
+

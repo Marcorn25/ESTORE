@@ -1,0 +1,89 @@
+﻿@page "/account/change-address"
+
+@inject IClientUserService ClientUserService
+@inject IClientFileUploadService ClientFileUploadService
+
+<PageTitle>Change Address</PageTitle>
+<title>Change Address</title>
+
+<MudText Typo="Typo.h6" Class="py-2 px-md-5">Change Address</MudText>
+
+<EditForm Model="Address" OnValidSubmit="HandleSubmit" FormName="AddressDetails">
+    <DataAnnotationsValidator />
+    <MudContainer Class="my-5">
+        @if (error != null)
+        {
+            <MudPaper Class="my-2 py-2" Style="@($"color:{Colors.BlueGrey.Darken3}; background:{Colors.Grey.Lighten4};")" Elevation="0">
+                <MudText Typo="Typo.subtitle1" Align="Align.Center"><em>@error</em></MudText>
+            </MudPaper>
+        }
+        <MudGrid>
+            <MudItem xs="12" sm="12" md="6">
+                <MudTextField @bind-Value="@Address.Street"
+                              Label="Street"
+                              Variant="Variant.Outlined"
+                              Class="mb-4"
+                              Required="true" />
+                <MudTextField @bind-Value="@Address.Barangay"
+                              Label="Barangay"
+                              Variant="Variant.Outlined"
+                              Class="mb-4"
+                              Required="true" />
+                <MudTextField @bind-Value="@Address.City"
+                              Label="City"
+                              Variant="Variant.Outlined"
+                              Class="mb-4"
+                              Required="true" />
+                <MudTextField @bind-Value="@Address.ZipCode"
+                              Label="Zip Code"
+                              Variant="Variant.Outlined"
+                              Class="mb-4"
+                              Required="true" />
+                <MudTextField @bind-Value="@Address.Country"
+                              Label="Country"
+                              Variant="Variant.Outlined"
+                              Class="mb-4"
+                              Required="true" />
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <MudButton Class="px-10" ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color=Color.Primary Disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <MudProgressCircular Color="Color.Primary" Size="Size.Small" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.subtitle1">Save</MudText>
+                        }
+                    </MudButton>
+                </div>
+            </MudItem>
+        </MudGrid>
+    </MudContainer>
+</EditForm>
+
+@code {
+    public AddressDTO Address = new AddressDTO();
+    public bool isLoading = false;
+    public string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await ClientUserService.GetUserAddress();
+        if (response != null)
+        {
+            Address = response;
+        }
+
+    }
+    async Task HandleSubmit()
+    {
+        isLoading = true;
+        error = null;
+        var response = await ClientUserService.UpdateUserAddress(Address);
+        if (response != null)
+            error = response;
+        isLoading = false;
+
+    }
+
+}

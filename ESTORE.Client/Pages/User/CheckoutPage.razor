@@ -1,0 +1,276 @@
+﻿@page "/checkout"
+@using ESTORE.Client.States.Order
+@using ESTORE.Shared.Enum
+
+@inject IClientUserService UserService
+@inject IClientCartService ClientCartService
+@inject IClientAuthService ClientAuthService
+@inject IClientOrderService ClientOrderService
+@inject OrderState orderState
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Checkout</PageTitle>
+<title>Checkout</title>
+<AuthorizeView>
+    <Authorized>
+        <MudText Typo="Typo.h6" Class="py-2 px-md-5">Checkout</MudText>
+        @if (cartItems == null && !isLoading)
+        {
+            <div class="d-flex row justify-content-center mt-10">
+                <MudImage Src="./assets/shopping-bag.png" Style="width: 60px;" />
+                <MudText Typo="Typo.subtitle1" Align="Align.Center"><em>No Item From Cart</em></MudText>
+            </div>
+        }
+        else
+        {
+            <EditForm OnValidSubmit="PlaceOrderHandler" Model="ShippingAddress" Context="Address">
+                <DataAnnotationsValidator />
+                <MudGrid Class="my-3">
+                    <MudItem md="8" sm="12" Class="py-2 mt-5">
+                        <MudDivider />
+                        <MudText Typo="Typo.h6" Class="py-2 px-md-5">Shipping Address</MudText>
+                        <MudGrid Class="mt-3">
+                            <MudItem md="6" xs="12" Class="px-3">
+                                <MudTextField @bind-Value="ShippingAddress.Street"
+                                              For="@(()=>@ShippingAddress.Street)"
+                                              Label="Street"
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              ShrinkLabel Class="mx-5" />
+                            </MudItem>
+                            <MudItem md="6" xs="12" Class="px-3">
+                                <MudTextField @bind-Value="ShippingAddress.City"
+                                              For="@(()=>@ShippingAddress.City)"
+                                              Label="City"
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              ShrinkLabel Class="mx-5" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudGrid Class="mt-3">
+                            <MudItem md="6" xs="12" Class="px-3">
+                                <MudTextField @bind-Value="ShippingAddress.Barangay"
+                                              For="@(()=>@ShippingAddress.Barangay)"
+                                              Label="Barangay"
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              ShrinkLabel Class="mx-5" />
+                            </MudItem>
+                            <MudItem md="6" xs="12" Class="px-3">
+                                <MudTextField @bind-Value="ShippingAddress.ZipCode"
+                                              For="@(()=>@ShippingAddress.ZipCode)"
+                                              Label="ZipCode"
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              ShrinkLabel Class="mx-5" />
+                            </MudItem>
+                        </MudGrid>
+                        <MudGrid Class="mt-3">
+                            <MudItem md="6" xs="12" Class="px-3">
+                                <MudTextField @bind-Value="ShippingAddress.Country"
+                                              For="@(()=>@ShippingAddress.Country)"
+                                              Label="Country"
+                                              Required="true"
+                                              Variant="Variant.Outlined"
+                                              ShrinkLabel Class="mx-5" />
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudDivider Class="mt-5" />
+                        <MudText Typo="Typo.h6" Class="py-2 px-md-5">Payment Details</MudText>
+
+                        <div class="container px-md-5">
+                            <div class="row">
+                                @foreach (var option in PaymentOptions)
+                                {
+                                    <div class="col-12 col-md-3">
+                                        <!-- Responsive column sizing -->
+                                        <MudCard Class="my-2 px-3"
+                                                 @onclick="@(() => SelectPaymentType(option.Type))"
+                                                 Style="cursor: pointer;"
+                                                 Elevation="2">
+                                            @if (option.Type == PaymentType.CashOnDelivery)
+                                            {
+                                                <div class="d-flex align-items-center justify-content-center" style="height: 80px;">
+                                                    <MudText Typo="Typo.h6" Align="Align.Center">Cash On Delivery</MudText>
+                                                </div>
+                                            }
+                                            else
+                                            {
+                                                <div class="d-flex align-items-center justify-content-center">
+                                                    <MudImage Src="@option.ImageUrl"
+                                                              Style="width: 150px; height: 80px;"
+                                                              ObjectFit="ObjectFit.Contain" />
+                                                </div>
+                                            }
+                                        </MudCard>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        @if (SelectedPaymentType.HasValue)
+                        {
+                            <MudCard Class="mt-4 mx-4" Elevation="0">
+                                <MudCardHeader Class="py-0">
+                                    <MudText Typo="Typo.h6">@SelectedPaymentType</MudText>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    @switch (SelectedPaymentType)
+                                    {
+                                        case PaymentType.Mastercard:
+                                        case PaymentType.Visa:
+                                            <p>Enter your card details below:</p>
+                                            <div class="d-flex row gap-3">
+                                                <MudTextField T="string" ShrinkLabel Label="Card Number" Variant="Variant.Outlined" />
+                                                <MudDatePicker Label="Expiration Date" Variant="Variant.Outlined" Class="p-0" />
+                                                <MudTextField T="string" ShrinkLabel Label="CVV" Variant="Variant.Outlined" />
+                                            </div>
+                                            break;
+
+                                        case PaymentType.PayPal:
+                                            <p>Sign in to your PayPal account to complete the payment.</p>
+                                            <MudButton Variant="Variant.Outlined" OnClick="OpenPayPalInNewTab">Sign in with PayPal</MudButton>
+                                            break;
+
+                                        case PaymentType.CashOnDelivery:
+                                            <p>No additional details required. Pay in cash upon delivery.</p>
+                                            break;
+                                    }
+                                </MudCardContent>
+                            </MudCard>
+                        }
+
+                    </MudItem>
+                    <MudItem md="4" sm="12" xs="12" Class="px-10">
+                        <MudCard Class="p-3 m-auto">
+                            <MudCardHeader>
+                                <MudText Typo="Typo.h6">Order Summary</MudText>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <div class="d-flex justify-content-between my-4">
+                                    <MudText Typo="Typo.body2">Subtotal</MudText>
+                                    <MudText Typo="Typo.body2">@Helpers.FormatToPhilippinePeso(Subtotal)</MudText>
+                                </div>
+                                <div class="d-flex justify-content-between my-4">
+                                    <MudText Typo="Typo.body2">Shipping Fee</MudText>
+                                    <MudText Typo="Typo.body2">@Helpers.FormatToPhilippinePeso(ShippingFee)</MudText>
+                                </div>
+                                <MudDivider></MudDivider>
+                                <div class="d-flex justify-content-between my-4">
+                                    <MudText Typo="Typo.body2" Style="font-weight: 900">Total</MudText>
+                                    <MudText Typo="Typo.body2" Style="font-weight: 900">@Helpers.FormatToPhilippinePeso(Total)</MudText>
+                                </div>
+                                <MudButton ButtonType="ButtonType.Submit"
+                                           Variant="Variant.Filled"
+                                           Style="@($"color:{Colors.Grey.Lighten4}; background:{Colors.BlueGrey.Darken4};")"
+                                           FullWidth
+                                           Class="mt-10">
+                                    Place Order
+                                </MudButton>
+                                <MudButton OnClick="@(()=> NavigationManager.NavigateTo("/my-cart"))"
+                                           FullWidth
+                                           Class="mt-4">
+                                    Cancel
+                                </MudButton>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        }
+    </Authorized>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    /* Hover effect for MudCard */
+    .mud-card-hover {
+        transition: transform 0.3s ease;
+    }
+    .mud-card-hover:hover {
+        transform: scale(1.05);
+    }
+</style>
+
+@code {
+    public List<CartItemDTO> cartItems = new List<CartItemDTO>();
+    public AddressDTO ShippingAddress = new AddressDTO();
+
+    public float Subtotal = 0;
+    public float Total = 0;
+    public float ShippingFee = 500;
+    public bool isLoading = false;
+    int UserId;
+    bool addToCart = false;
+    private PaymentType? SelectedPaymentType = PaymentType.CashOnDelivery;
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        if (string.IsNullOrEmpty(ClientAuthService.Token.Value))
+        {
+            var cookieValue = await JSRuntime.InvokeAsync<string>("getCookie", "Token");
+            if (!string.IsNullOrEmpty(cookieValue))
+                ClientAuthService.Token.Value = cookieValue;
+
+        }
+        UserId = ClientAuthService.User.Id;
+        Subtotal = orderState.Subtotal;
+        Total = orderState.Total;
+        ShippingFee = orderState.ShippingFee;
+        cartItems = orderState.CartItems;
+        if (orderState.OrderItems == null)
+        {
+            NavigationManager.NavigateTo("/my-cart");
+        }
+
+        var response = await UserService.GetUserDetails();
+        if (response !=null)
+            ShippingAddress = response.HomeAddress;
+    }
+
+
+    async Task PlaceOrderHandler()
+    {
+        addToCart = true;
+        orderState.ShippingAddress = ShippingAddress;
+        orderState.paymentType = SelectedPaymentType;
+        await ClientOrderService.AddOrderFromCart();
+        addToCart = false;
+    }
+
+    public class PaymentOption
+    {
+        public PaymentType Type { get; set; }
+        public string DisplayName { get; set; }
+        public string ImageUrl { get; set; }
+    }
+
+    // Create a list of payment options from the enum
+    private List<PaymentOption> PaymentOptions = new List<PaymentOption>
+    {
+        new PaymentOption { Type = PaymentType.CashOnDelivery, DisplayName = "Cash on Delivery", ImageUrl = "./assets/cash-on-delivery.png" },
+        new PaymentOption { Type = PaymentType.Mastercard, DisplayName = "Mastercard", ImageUrl = "./assets/mastercard.png" },
+        new PaymentOption { Type = PaymentType.Visa, DisplayName = "Visa", ImageUrl = "./assets/visa.png" },
+        new PaymentOption { Type = PaymentType.PayPal, DisplayName = "PayPal", ImageUrl = "./assets/paypal.png" },
+    };
+
+    // Method to handle selection of a payment type
+    private void SelectPaymentType(PaymentType paymentType)
+    {
+        SelectedPaymentType = paymentType;
+    }
+    // Method to open PayPal in a new tab
+    private async Task OpenPayPalInNewTab()
+    {
+        await JSRuntime.InvokeVoidAsync("openNewTab", "https://www.paypal.com/signin");
+    }
+}
+

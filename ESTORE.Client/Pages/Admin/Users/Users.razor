@@ -1,0 +1,101 @@
+﻿@page "/admin/users"
+
+@inject IClientUserService ClientUserService
+
+<style>
+    .mud-table-head {
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+        padding: 5px;
+    }
+
+    .mud-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 20px 30px;
+    }
+</style>
+
+<PageTitle>All Users</PageTitle>
+<title>All Users</title>
+
+    <AuthorizeView Roles="SUPERUSER, ADMIN">
+        <Authorized>
+            <MudText Typo="Typo.h6" Class="py-2 px-md-5">All Users</MudText>
+            <MudTable Items="users"
+                  Hover="true"
+                  Striped="true"
+                  Class="mb-3"
+                  Loading="@isLoading"
+                  Breakpoint="Breakpoint.Sm">
+                <ToolBarContent>
+                    <div class="d-flex gap-4 py-2">
+                        <MudTextField T="string"
+                                      Placeholder="Search"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      IconSize="Size.Small"
+                                      Style="width: 300px"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                        />
+                    </div>
+                </ToolBarContent>
+                <HeaderContent>
+                    <MudTh> User No </MudTh>
+                    <MudTh> Name </MudTh>
+                    <MudTh> Email </MudTh>
+                    <MudTh> Username </MudTh>
+                    <MudTh> Role </MudTh>
+                    <MudTh> Action </MudTh>
+                </HeaderContent>
+                 <RowTemplate Context="User">
+                    <MudTd DataLabel="User No">@User.Id</MudTd>
+                    <MudTd DataLabel="Name">@User.FullName</MudTd>
+                    <MudTd DataLabel="Email">@User.Email</MudTd>
+                    <MudTd DataLabel="Name">@User.UserName</MudTd>
+                      <MudTd>
+                        <MudSelect T="AccountRoles"
+                                   Value="@User.Role.Value"
+                                   ValueChanged="@((newRole) => UpdateRole(User, newRole))"
+                                   Variant="Variant.Text"
+                                   Dense="true"
+                                   Style="min-width: 150px;">
+                            @foreach (AccountRoles role in Enum.GetValues(typeof(AccountRoles)))
+                            {
+                                <MudSelectItem T="AccountRoles" Value="role">@role.ToString()</MudSelectItem>
+                            }
+                        </MudSelect>
+                      </MudTd>
+                    <MudTd>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(()=>UpdateUserRole(User))">Update</MudButton>
+                    </MudTd>
+            </RowTemplate>
+            </MudTable>
+        </Authorized>
+        <NotAuthorized>
+        </NotAuthorized>
+    </AuthorizeView>
+
+
+@code {
+    private List<UserDetailsDTO> users = new List<UserDetailsDTO>();
+    bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await ClientUserService.GetAllUsers();
+        if(response != null)
+            users = response;
+    }
+
+    private void UpdateRole(UserDetailsDTO user, AccountRoles newRole)
+    {
+        user.Role = newRole;
+    }
+
+    async Task UpdateUserRole(UserDetailsDTO user)
+    {
+        await ClientUserService.UpdateUserRole(user);
+    }
+}

@@ -1,0 +1,174 @@
+﻿@page "/admin/orders"
+
+@inject IClientOrderService ClientOrderService
+@inject IDialogService DialogService
+
+<PageTitle>Orders</PageTitle>
+<title>Orders</title>
+
+
+<style>
+    .mud-table-head {
+        border-top: 1px solid #ccc;
+        border-bottom: 1px solid #ccc;
+        padding: 5px;
+    }
+
+    .mud-toolbar {
+        display: flex;
+        justify-content: flex-end;
+        padding: 20px 30px;
+    }
+</style>
+
+    <MudText Typo="Typo.h6" Class="py-2 px-md-5">Order List</MudText>
+
+    <MudDataGrid 
+        Items="@customersOrder" 
+        ReadOnly Loading=isLoading
+             Hover="true"
+             Striped="true"
+             Class="mb-3"
+             Breakpoint="Breakpoint.Sm">
+             
+        <ToolBarContent>
+            <div class="d-flex gap-4 py-2">
+            <MudSelect T="OrderStatus"
+                       Variant="Variant.Outlined"
+                       Style="width: 200px"
+                       Margin="Margin.Dense"
+                       @bind-Value="status"
+                       SelectedValuesChanged="filterFromStatus">
+                @foreach (OrderStatus status in Enum.GetValues(typeof(OrderStatus)))
+                {
+                    <MudSelectItem T="OrderStatus" Value="status">@status.ToString()</MudSelectItem>
+                }
+            </MudSelect>
+
+            </div>
+        </ToolBarContent>
+
+        <Columns>
+            <HierarchyColumn T="OrderDTO" />
+            <PropertyColumn Property="x => x.Id" Title="Order No." />
+            <PropertyColumn Property="x => x.User.FullName" Title="Customer Name" />
+            <PropertyColumn Property="x => Helpers.ToLongDateString(x.DateOrdered)" Title="Date Ordered" />
+            <PropertyColumn Property="x => Helpers.FormatToPhilippinePeso(x.Total)" Title="Total" />
+            <AuthorizeView Roles="SUPERUSER">
+             <TemplateColumn Title="Status">
+                <CellTemplate Context="Order">
+                        @if (Order?.Item != null)
+                    {
+                            var currentStatus = Order.Item.Status ?? default(OrderStatus);
+                        <MudSelect T="OrderStatus"
+                                   Value="@currentStatus"
+                                       ValueChanged="@(newStatus => UpdateStatus(Order.Item, newStatus))"
+                                   Variant="Variant.Text"
+                                   Dense="true"
+                                   Style="min-width: 150px;">
+                            @foreach (OrderStatus status in Enum.GetValues(typeof(OrderStatus)))
+                            {
+                                <MudSelectItem T="OrderStatus" Value="status">@status.ToString()</MudSelectItem>
+                            }
+                        </MudSelect>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Action">
+                <CellTemplate Context="Order">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="() => UpdateOrderStatus(Order.Item)">Update</MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="() => ViewOrderDetails(Order.Item)">View</MudButton>
+                </CellTemplate>
+            </TemplateColumn>
+            </AuthorizeView>
+           <AuthorizeView Roles="ADMIN">
+                <PropertyColumn Property="x => x.Status" Title="Status" />
+           </AuthorizeView>
+        </Columns>
+        <ChildRowContent>
+            <MudCard>
+                <MudCardContent>
+                    @foreach (OrderItemDTO item in context.Item.OrderItems)
+                    {
+                        <MudContainer Class="p-0 m-0">
+                            <MudGrid Class="py-3 my-3">
+                                <MudItem md="3">
+                                    <MudImage Src="@item.Product.ImageUrl" Class="w-100" Style="height: 120px" ObjectFit="ObjectFit.Contain" />
+                                </MudItem>
+                                <MudItem md="9" Class="px-3">
+                                    <MudText Typo="Typo.subtitle2">@item.Product.Name</MudText>
+                                    <MudText Typo="Typo.subtitle1" Class="mt-4">Price: @Helpers.FormatToPhilippinePeso(item.Product.Price)</MudText>
+                                    <MudText Typo="Typo.subtitle1">Quantity: @item.Quantity</MudText>
+                                    <MudText Typo="Typo.subtitle1">Total: <span style="color: red">@Helpers.FormatToPhilippinePeso(item.Subtotal)</span></MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudContainer>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </ChildRowContent>
+        <PagerContent>
+            <MudDataGridPager T="OrderDTO" />
+        </PagerContent>
+    </MudDataGrid>
+
+
+
+@code {
+    private List<OrderDTO> customersOrder = new List<OrderDTO>();
+    OrderStatus status = OrderStatus.PROCESSING;
+    bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        isLoading = true;
+        var response = await ClientOrderService.GetAllCustomerOrders(status.ToString());
+        if (response != null)
+            customersOrder = response;
+
+        isLoading = false;
+    }
+
+    //Status Cell Style
+    private Func<OrderDTO, string> _cellStyleFunc => x =>
+    {
+        string style = "";
+
+        if (x.Status.ToString() == "PENDING")
+            style += "background-color:#8CED8C; text-align: center;";
+
+        return style;
+    };
+
+    private void UpdateStatus(OrderDTO order, OrderStatus newStatus)
+    {
+        order.Status = newStatus;
+    }
+
+    async Task UpdateOrderStatus(OrderDTO order)
+    {
+        await ClientOrderService.UpdateOrderStatus(order);
+    }
+
+    //View Order
+    private void ViewOrderDetails(OrderDTO selectedOrder)
+    {
+        var parameters = new DialogParameters<Modal>();
+        parameters.Add(x => x.Order, selectedOrder);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Medium };
+
+        DialogService.Show<Modal>("", parameters, options);
+    }
+
+    async Task filterFromStatus()
+    {
+        var response = await ClientOrderService.GetAllCustomerOrders(status.ToString());
+        if (response != null)
+            customersOrder = response;
+    }
+}

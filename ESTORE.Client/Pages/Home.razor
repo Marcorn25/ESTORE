@@ -1,0 +1,15 @@
+﻿@page "/"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<AuthorizeView Roles="SUPERUSER, ADMIN">
+    <Authorized>
+       <Dashboard/>
+    </Authorized>
+    <NotAuthorized>
+        <Products />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code{
+    
+}
